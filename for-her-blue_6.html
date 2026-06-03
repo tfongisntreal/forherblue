@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>For Her 💙</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,400;1,500&family=Quicksand:wght@400;500&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#03040c; overscroll-behavior:none; }
+  #scene {
+    position:fixed; inset:0; touch-action:none;
+    background: radial-gradient(130% 90% at 50% 35%, #0d1838 0%, #070b22 45%, #03040c 100%);
+  }
+  canvas { display:block; }
+  .top-text {
+    position:fixed; top:max(7%, env(safe-area-inset-top,0px)); left:0; width:100%; text-align:center;
+    font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:500;
+    font-size:clamp(22px,6.5vw,36px); letter-spacing:.04em; color:#dcecff;
+    text-shadow:0 0 22px rgba(150,195,255,.65); z-index:5; pointer-events:none;
+    opacity:0; animation:fadeIn 2.4s ease forwards .6s;
+  }
+  .bottom-text {
+    position:fixed; bottom:max(9%, env(safe-area-inset-bottom,0px)); left:0; width:100%; text-align:center;
+    font-family:'Quicksand',sans-serif; font-weight:400; font-size:clamp(12px,3.8vw,16px);
+    letter-spacing:.2em; text-transform:uppercase; color:#aacbf4;
+    text-shadow:0 0 14px rgba(120,170,255,.45); z-index:5; pointer-events:none;
+    opacity:0; animation:fadeIn 2.6s ease forwards 1.6s;
+  }
+  .hint {
+    position:fixed; bottom:max(4.5%, env(safe-area-inset-bottom,0px)); left:0; width:100%; text-align:center;
+    font-family:'Quicksand',sans-serif; font-size:11px; letter-spacing:.12em;
+    color:rgba(170,200,240,.45); z-index:5; pointer-events:none;
+    opacity:0; animation:fadeIn 2s ease forwards 2.6s;
+  }
+  @keyframes fadeIn { from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+  .vignette {
+    position:fixed; inset:0; pointer-events:none; z-index:4;
+    background: radial-gradient(120% 90% at 50% 50%, transparent 50%, rgba(2,3,9,.8) 100%);
+  }
+</style>
+</head>
+<body>
+  <div id="scene"></div>
+  <div class="vignette"></div>
+  <div class="top-text">this is for you</div>
+  <div class="bottom-text">made with love 💙</div>
+  <div class="hint">kéo để xoay · chụm để phóng to</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+  (function () {
+    const container = document.getElementById('scene');
+    const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || window.innerWidth < 700;
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x05081a, 0.012);
+    const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 2000);
+
+    const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    container.appendChild(renderer.domElement);
+
+    // ===== môi trường xanh cho pha lê khúc xạ =====
+    function makeEnv(){
+      const c=document.createElement('canvas'); c.width=512; c.height=256; const g=c.getContext('2d');
+      const gr=g.createLinearGradient(0,0,0,256);
+      gr.addColorStop(0,'#0a1638'); gr.addColorStop(.42,'#2f6ad0'); gr.addColorStop(.55,'#cfeaff');
+      gr.addColorStop(.7,'#5d97e6'); gr.addColorStop(1,'#0a1230');
+      g.fillStyle=gr; g.fillRect(0,0,512,256);
+      for(let i=0;i<46;i++){ g.beginPath(); g.fillStyle='rgba(220,240,255,'+(Math.random()*.5+.3)+')';
+        g.arc(Math.random()*512,Math.random()*256,Math.random()*5+1,0,6.28); g.fill(); }
+      const t=new THREE.CanvasTexture(c); t.mapping=THREE.EquirectangularReflectionMapping; t.encoding=THREE.sRGBEncoding; return t;
+    }
+    const envTex=makeEnv(); scene.environment=envTex;
+
+    // ===== ánh sáng (toàn blue) =====
+    scene.add(new THREE.AmbientLight(0x6f9bff, 0.55));
+    const key=new THREE.DirectionalLight(0xbcd8ff,1.5); key.position.set(4,7,8); scene.add(key);
+    const p1=new THREE.PointLight(0x4f8fff,2.4,60); p1.position.set(-7,-1,5); scene.add(p1);
+    const p2=new THREE.PointLight(0x9fd0ff,1.8,60); p2.position.set(6,4,-2); scene.add(p2);
+    const p3=new THREE.PointLight(0x2e5cff,1.6,50); p3.position.set(0,-5,3); scene.add(p3);
+
+    const world=new THREE.Group(); scene.add(world);
+
+    // ===== KHỐI PHA LÊ TRÁI TIM (tròn, bóng) =====
+    function heartShape(){
+      const s=new THREE.Shape(), x=0,y=0;
+      s.moveTo(x+.25,y+.25);
+      s.bezierCurveTo(x+.25,y+.25,x+.20,y,x,y);
+      s.bezierCurveTo(x-.30,y,x-.30,y+.35,x-.30,y+.35);
+      s.bezierCurveTo(x-.30,y+.55,x-.10,y+.77,x+.25,y+.95);
+      s.bezierCurveTo(x+.60,y+.77,x+.80,y+.55,x+.80,y+.35);
+      s.bezierCurveTo(x+.80,y+.35,x+.80,y,x+.50,y);
+      s.bezierCurveTo(x+.35,y,x+.25,y+.25,x+.25,y+.25);
+      return s;
+    }
+    // bevel lớn + nhiều segment + smooth shading => trái tim phồng tròn như viên đá
+    const geo=new THREE.ExtrudeGeometry(heartShape(),{
+      depth:.24, bevelEnabled:true, bevelSegments:14, steps:2,
+      bevelSize:.13, bevelThickness:.12, curveSegments:56
+    });
+    geo.center(); geo.computeVertexNormals();   // KHÔNG flatShading -> bề mặt mượt tròn
+    geo.scale(2.15,2.15,2.15);
+
+    const crystalMat=new THREE.MeshPhysicalMaterial({
+      color:0x3f86ff, metalness:0, roughness:0.06,
+      transmission:0.7, thickness:2.8, ior:1.7, reflectivity:.65,
+      clearcoat:1.0, clearcoatRoughness:.06,
+      envMap:envTex, envMapIntensity:1.15,
+      attenuationColor:new THREE.Color(0x1f56ff), attenuationDistance:0.9,
+      emissive:0x163fb0, emissiveIntensity:0.5,
+      transparent:true
+    });
+    const heart=new THREE.Mesh(geo,crystalMat); heart.rotation.z=Math.PI;
+    const heartPivot=new THREE.Group(); heartPivot.add(heart); world.add(heartPivot);
+
+    // lõi sáng blue bên trong
+    const coreGeo=geo.clone(); coreGeo.scale(.5,.5,.5);
+    const core=new THREE.Mesh(coreGeo,new THREE.MeshBasicMaterial({
+      color:0x4f9fff, transparent:true, opacity:.40, blending:THREE.AdditiveBlending
+    }));
+    heart.add(core);
+
+    // quầng sáng xanh bao quanh trái tim
+    function glowTex(){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');
+      const gr=g.createRadialGradient(128,128,0,128,128,128);
+      gr.addColorStop(0,'rgba(120,180,255,0.9)');gr.addColorStop(.35,'rgba(70,130,255,0.45)');
+      gr.addColorStop(1,'rgba(40,90,220,0)');g.fillStyle=gr;g.fillRect(0,0,256,256);return new THREE.CanvasTexture(c);}
+    const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex(),transparent:true,
+      opacity:0.55,blending:THREE.AdditiveBlending,depthWrite:false}));
+    halo.scale.set(5.0,5.0,1); heartPivot.add(halo);
+
+    // ===== particle viền tim (blue) =====
+    function heartPoint(t){
+      const x=16*Math.pow(Math.sin(t),3);
+      const y=13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t);
+      return new THREE.Vector3(x*.21,y*.21,0);
+    }
+    const COUNT=isMobile?800:1300;
+    const pPos=new Float32Array(COUNT*3), pCol=new Float32Array(COUNT*3);
+    const phis=new Float32Array(COUNT),radii=new Float32Array(COUNT),speeds=new Float32Array(COUNT),bases=[];
+    const blues=[0xe6f2ff,0xcfe8ff,0xa3cef1,0x7fb3ff,0x5d97e6,0x9fd0ff].map(h=>new THREE.Color(h));
+    for(let i=0;i<COUNT;i++){
+      const t=Math.random()*6.283, b=heartPoint(t); b.z=(Math.random()-.5)*.7; bases.push(b);
+      phis[i]=Math.random()*6.283; radii[i]=Math.random()*.4; speeds[i]=Math.random()*1.5+.4;
+      const i3=i*3; pPos[i3]=b.x;pPos[i3+1]=b.y;pPos[i3+2]=b.z;
+      const c=blues[Math.floor(Math.random()*blues.length)]; pCol[i3]=c.r;pCol[i3+1]=c.g;pCol[i3+2]=c.b;
+    }
+    const pGeo=new THREE.BufferGeometry();
+    pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
+    pGeo.setAttribute('color',new THREE.BufferAttribute(pCol,3));
+    function softDot(){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');
+      const gr=g.createRadialGradient(32,32,0,32,32,32);
+      gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.3,'rgba(210,235,255,.8)');gr.addColorStop(1,'rgba(160,200,255,0)');
+      g.fillStyle=gr;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c);}
+    const particles=new THREE.Points(pGeo,new THREE.PointsMaterial({
+      size:.18,map:softDot(),vertexColors:true,transparent:true,opacity:.95,depthWrite:false,blending:THREE.AdditiveBlending}));
+    world.add(particles);
+
+    // ===== tim nhỏ bay (blue) =====
+    function heartSprite(color){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');
+      g.fillStyle=color;const x=32,y=24,w=22;g.beginPath();g.moveTo(x,y+w*.3);
+      g.bezierCurveTo(x,y,x-w,y,x-w,y+w*.4);g.bezierCurveTo(x-w,y+w,x,y+w*1.3,x,y+w*1.6);
+      g.bezierCurveTo(x,y+w*1.3,x+w,y+w,x+w,y+w*.4);g.bezierCurveTo(x+w,y,x,y,x,y+w*.3);g.fill();
+      return new THREE.CanvasTexture(c);}
+    const fColors=['#cfe8ff','#a3cef1','#7fb3ff','#9fd0ff'];
+    const floaters=[]; const fN=isMobile?10:14;
+    for(let i=0;i<fN;i++){
+      const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:heartSprite(fColors[i%fColors.length]),
+        transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+      const sc=Math.random()*.4+.25; sp.scale.set(sc,sc,sc);
+      sp.position.set((Math.random()-.5)*10,(Math.random()-.5)*11-2,(Math.random()-.5)*4);
+      sp.userData={speed:Math.random()*.012+.006,sway:Math.random()*6.28,swayAmt:Math.random()*.01+.004,maxOp:Math.random()*.5+.3};
+      world.add(sp); floaters.push(sp);
+    }
+
+    // ===== DẢI THIÊN HÀ XOẮN ỐC =====
+    const GN = isMobile ? 7000 : 13000;
+    const gPos=new Float32Array(GN*3), gCol=new Float32Array(GN*3);
+    const R=42, ARMS=4, SPIN=4.5;
+    const cInner=new THREE.Color(0x9ecbff), cMid=new THREE.Color(0x3f7fff), cOuter=new THREE.Color(0x14257a);
+    for(let i=0;i<GN;i++){
+      const i3=i*3;
+      const rad=Math.pow(Math.random(),0.6)*R;
+      const arm=(i%ARMS)/ARMS*Math.PI*2;
+      const spin=rad*SPIN/R;
+      const spread=(Math.random()-0.5);
+      const rx=Math.pow(Math.random(),3)*spread*rad*0.45;
+      const ry=Math.pow(Math.random(),3)*spread*rad*0.10;  // dẹt -> dải thiên hà
+      const rz=Math.pow(Math.random(),3)*spread*rad*0.45;
+      const ang=arm+spin;
+      gPos[i3]   = Math.cos(ang)*rad + rx;
+      gPos[i3+1] = ry*4;
+      gPos[i3+2] = Math.sin(ang)*rad + rz;
+      const c=cInner.clone();
+      if(rad/R<0.45) c.lerp(cMid,(rad/R)/0.45);
+      else c.copy(cMid).lerp(cOuter,((rad/R)-0.45)/0.55);
+      gCol[i3]=c.r; gCol[i3+1]=c.g; gCol[i3+2]=c.b;
+    }
+    const galGeo=new THREE.BufferGeometry();
+    galGeo.setAttribute('position',new THREE.BufferAttribute(gPos,3));
+    galGeo.setAttribute('color',new THREE.BufferAttribute(gCol,3));
+    const galaxy=new THREE.Points(galGeo,new THREE.PointsMaterial({
+      size:0.22, map:softDot(), vertexColors:true, transparent:true, opacity:0.9,
+      depthWrite:false, blending:THREE.AdditiveBlending, sizeAttenuation:true}));
+    galaxy.rotation.x = 0.5; galaxy.position.z = -6;
+    scene.add(galaxy);
+
+    // mây tinh vân blue (sprite mềm lớn)
+    function nebula(color){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');
+      const gr=g.createRadialGradient(128,128,0,128,128,128);
+      gr.addColorStop(0,color+'cc');gr.addColorStop(.4,color+'55');gr.addColorStop(1,color+'00');
+      g.fillStyle=gr;g.fillRect(0,0,256,256);return new THREE.CanvasTexture(c);}
+    const nebCols=['#2a4fb0','#1f6fd0','#3aa0ff','#1b2f8c'];
+    const nebs=[];
+    for(let i=0;i<6;i++){
+      const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:nebula(nebCols[i%nebCols.length]),
+        transparent:true,opacity:0.35,blending:THREE.AdditiveBlending,depthWrite:false}));
+      const s=Math.random()*22+16; sp.scale.set(s,s,1);
+      const ang=Math.random()*6.28, rad=Math.random()*30+10;
+      sp.position.set(Math.cos(ang)*rad,(Math.random()-.5)*8,Math.sin(ang)*rad-6);
+      sp.userData={rot:(Math.random()-.5)*0.0006};
+      scene.add(sp); nebs.push(sp);
+    }
+    // sao xa
+    const sN=isMobile?500:900; const sPos=new Float32Array(sN*3);
+    for(let i=0;i<sN;i++){const r=80+Math.random()*120,th=Math.random()*6.28,ph=Math.acos(2*Math.random()-1);
+      sPos[i*3]=r*Math.sin(ph)*Math.cos(th);sPos[i*3+1]=r*Math.cos(ph);sPos[i*3+2]=r*Math.sin(ph)*Math.sin(th);}
+    const sGeo=new THREE.BufferGeometry(); sGeo.setAttribute('position',new THREE.BufferAttribute(sPos,3));
+    scene.add(new THREE.Points(sGeo,new THREE.PointsMaterial({size:.5,color:0x6fb0ff,transparent:true,opacity:.85})));
+
+    // ===== ĐIỀU KHIỂN bằng Pointer Events (mượt, không lỗi) =====
+    const cam={dist:isMobile?12:10,targetDist:isMobile?12:10,theta:0,targetTheta:0,phi:.1,targetPhi:.1,autoSpin:.0012};
+    const MIND=5,MAXD=24,PHILIM=1.15;
+    const pointers=new Map(); let lastPinch=0;
+    const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+    container.addEventListener('pointerdown',e=>{
+      pointers.set(e.pointerId,{x:e.clientX,y:e.clientY}); cam.autoSpin=0;
+      try{container.setPointerCapture(e.pointerId);}catch(_){}
+    });
+    container.addEventListener('pointermove',e=>{
+      const prev=pointers.get(e.pointerId); if(!prev) return;
+      if(pointers.size===1){
+        cam.targetTheta -= (e.clientX-prev.x)*0.005;
+        cam.targetPhi  -= (e.clientY-prev.y)*0.005;
+        cam.targetPhi = clamp(cam.targetPhi,-PHILIM,PHILIM);
+      }
+      pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      if(pointers.size===2){
+        const p=[...pointers.values()];
+        const d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);
+        if(lastPinch>0) cam.targetDist=clamp(cam.targetDist*(lastPinch/d),MIND,MAXD);
+        lastPinch=d;
+      }
+    });
+    function endPtr(e){ pointers.delete(e.pointerId); if(pointers.size<2) lastPinch=0; }
+    container.addEventListener('pointerup',endPtr);
+    container.addEventListener('pointercancel',endPtr);
+    container.addEventListener('wheel',e=>{e.preventDefault();
+      cam.targetDist=clamp(cam.targetDist+e.deltaY*0.012,MIND,MAXD);},{passive:false});
+
+    // ===== loop =====
+    const clock=new THREE.Clock();
+    function animate(){
+      requestAnimationFrame(animate);
+      const t=clock.getElapsedTime();
+      heart.rotation.y=t*0.45;
+      heartPivot.scale.setScalar(1+Math.sin(t*2.1)*0.03);
+
+      const arr=pGeo.attributes.position.array;
+      for(let i=0;i<COUNT;i++){const i3=i*3,b=bases[i],a=phis[i]+t*speeds[i],r=radii[i];
+        arr[i3]=b.x+Math.cos(a)*r; arr[i3+1]=b.y+Math.sin(a)*r*.7; arr[i3+2]=b.z+Math.sin(a*1.3)*r;}
+      pGeo.attributes.position.needsUpdate=true;
+
+      floaters.forEach(sp=>{const u=sp.userData; sp.position.y+=u.speed; sp.position.x+=Math.sin(t+u.sway)*u.swayAmt;
+        if(sp.material.opacity<u.maxOp) sp.material.opacity+=.004;
+        if(sp.position.y>6.5){sp.position.y=-7.5;sp.position.x=(Math.random()-.5)*10;sp.material.opacity=0;}});
+
+      galaxy.rotation.y += 0.0004;
+      nebs.forEach(n=>n.material.rotation+=n.userData.rot);
+
+      cam.targetTheta+=cam.autoSpin;
+      cam.theta+=(cam.targetTheta-cam.theta)*0.08;
+      cam.phi +=(cam.targetPhi -cam.phi )*0.08;
+      cam.dist+=(cam.targetDist-cam.dist)*0.08;
+      camera.position.x=cam.dist*Math.cos(cam.phi)*Math.sin(cam.theta);
+      camera.position.y=cam.dist*Math.sin(cam.phi);
+      camera.position.z=cam.dist*Math.cos(cam.phi)*Math.cos(cam.theta);
+      camera.lookAt(0,0,0);
+      renderer.render(scene,camera);
+    }
+    animate();
+
+    addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+  })();
+  </script>
+</body>
+</html>
